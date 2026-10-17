@@ -11,7 +11,7 @@ export function whatsappConfigured() {
 }
 
 export function emailConfigured() {
-  return Boolean(process.env.BREVO_API_KEY && process.env.MAIL_FROM_EMAIL);
+  return Boolean(process.env.RESEND_API_KEY && process.env.MAIL_FROM_EMAIL);
 }
 
 /** WhatsApp Cloud API (Meta). Business-initiated messages must use an approved template. */
@@ -38,23 +38,24 @@ async function sendWhatsApp(phone: string, m: Message): Promise<Result> {
   return { status: "sent", detail: body?.messages?.[0]?.id ?? "ok" };
 }
 
-/** Brevo transactional email over HTTPS (free: 300 emails/day). HTTP works on Cloudflare Workers; SMTP does not reliably. */
+/** Resend email over HTTPS (free: 100/day, 3,000/month). HTTP works on Cloudflare Workers; SMTP does not reliably. */
 async function sendEmail(to: string, m: Message, settings: Settings): Promise<Result> {
   try {
-    const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+    const name = (process.env.MAIL_FROM_NAME || settings.business_name).replace(/[<>"]/g, "");
+    const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
-      headers: { "api-key": process.env.BREVO_API_KEY!, "Content-Type": "application/json", Accept: "application/json" },
+      headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        sender: { email: process.env.MAIL_FROM_EMAIL, name: process.env.MAIL_FROM_NAME || settings.business_name },
-        to: [{ email: to }],
-        replyTo: settings.email ? { email: settings.email } : undefined,
+        from: `${name} <${process.env.MAIL_FROM_EMAIL}>`,
+        to: [to],
+        reply_to: settings.email || undefined,
         subject: m.subject,
-        textContent: m.text,
+        text: m.text,
       }),
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) return { status: "failed", detail: body?.message ?? `HTTP ${res.status}` };
-    return { status: "sent", detail: body?.messageId ?? "ok" };
+    return { status: "sent", detail: body?.id ?? "ok" };
   } catch (e) {
     return { status: "failed", detail: e instanceof Error ? e.message : String(e) };
   }

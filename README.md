@@ -9,7 +9,7 @@ A personal lending ledger you install on your phone as an app (PWA). It tracks:
 - **Agreements:** the app makes the agreement PDF, and the customer gets a link to download it, sign it, and upload it back with their ID proof.
 - **Reminders:** sent automatically by WhatsApp and email (before the due date, on the due date, and when overdue), plus payment receipts.
 
-Stack (all free tiers): **Next.js 16** on **Cloudflare Workers**, **Supabase** (Postgres database, login, file storage), **Brevo** (email), and the WhatsApp Cloud API.
+Stack (all free tiers): **Next.js 16** on **Cloudflare Workers**, **Supabase** (Postgres database, login, file storage), **Resend** (email), and the WhatsApp Cloud API.
 
 ---
 
@@ -69,7 +69,7 @@ The app runs on **Cloudflare Workers** through the OpenNext adapter. Cloudflare 
    - the same `NEXT_PUBLIC_APP_URL` again (the daily job reads it)
    - `SUPABASE_SERVICE_ROLE_KEY`
    - `CRON_SECRET`: any long random string
-   - the Brevo and WhatsApp keys from `.env.example` (when you have them)
+   - the Resend and WhatsApp keys from `.env.example` (when you have them)
 5. The daily reminder job is already configured in `wrangler.jsonc`. It runs every day at **9:00 AM IST** (03:30 UTC); you can see it under **Settings → Trigger events**.
 
 Free-plan limits: the app bundle is about 1.8 MB (the limit is 3 MB), and there are 100,000 requests a day. If a page ever fails with "Worker exceeded CPU time limit" (the free plan allows 10 ms of CPU per request), upgrade to Workers Paid (US$5 a month). Nothing in the code needs to change.
@@ -80,17 +80,24 @@ To deploy from your own computer instead: `npx wrangler login`, then `npm run de
 
 Open your app's address in Chrome on Android, then tap **⋮ → Add to Home screen / Install app**. On iPhone, open it in Safari and tap **Share → Add to Home Screen**.
 
-### 5. Email (free, Brevo)
+### 5. Email (free, Resend)
 
-1. Create a free account at https://www.brevo.com. The free plan sends 300 emails a day.
-2. Go to **Senders, Domains & Dedicated IPs → Senders** and add the email address you want to send from, e.g. your Gmail. Verify it from the email Brevo sends you.
-3. Go to **SMTP & API → API Keys** and create a key.
+The Resend free plan sends 100 emails a day (3,000 a month).
+
+1. Create a free account at https://resend.com.
+2. **Verify a domain you own.** Resend only sends to other people from a verified domain; Gmail addresses can't be used as the sender.
+   - Go to **Domains → Add domain** and enter e.g. `zenryz.com`, or a subdomain like `mail.zenryz.com`.
+   - Add the DNS records Resend shows wherever that domain's DNS is managed (in Cloudflare: the domain → **DNS → Records**).
+   - Wait until the domain shows **Verified**.
+3. Go to **API Keys → Create API key** (permission: Sending access).
 4. Add these as Secrets on the Worker:
-   - `BREVO_API_KEY`: the key from step 3
-   - `MAIL_FROM_EMAIL`: the address you verified
+   - `RESEND_API_KEY`: the key from step 3
+   - `MAIL_FROM_EMAIL`: an address on the verified domain, e.g. `loans@zenryz.com` (it doesn't need a real mailbox)
    - `MAIL_FROM_NAME`: your business name
 
-Email goes out over Brevo's web API rather than SMTP, because Cloudflare Workers can't reliably make SMTP connections.
+Customers' replies go to the email you set in the app's **Settings**.
+
+Email goes out over Resend's web API rather than SMTP, because Cloudflare Workers can't reliably make SMTP connections.
 
 ### 6. WhatsApp automatic messages (small cost)
 
