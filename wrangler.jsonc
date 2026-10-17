@@ -1,0 +1,19 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "lendbook",
+	// custom-worker.ts wraps the OpenNext worker to add the daily reminder cron
+	"main": "custom-worker.ts",
+	"compatibility_date": "2026-10-01",
+	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+	"assets": {
+		"directory": ".open-next/assets",
+		"binding": "ASSETS"
+	},
+	"triggers": {
+		// 03:30 UTC = 9:00 AM IST
+		"crons": ["30 3 * * *"]
+	},
+	"observability": { "enabled": true },
+	// keep variables/secrets added in the Cloudflare dashboard when deploying
+	"keep_vars": true
+}
