@@ -11,7 +11,11 @@ export function whatsappConfigured() {
 }
 
 export function emailConfigured() {
-  return Boolean(process.env.RESEND_API_KEY && process.env.MAIL_FROM_EMAIL);
+  return gmailConfigured() || Boolean(process.env.RESEND_API_KEY && process.env.MAIL_FROM_EMAIL);
+}
+
+function gmailConfigured() {
+  return Boolean(process.env.GMAIL_SCRIPT_URL && process.env.GMAIL_SCRIPT_SECRET);
 }
 
 /** WhatsApp Cloud API (Meta). Business-initiated messages must use an approved template. */
@@ -38,8 +42,36 @@ async function sendWhatsApp(phone: string, m: Message): Promise<Result> {
   return { status: "sent", detail: body?.messages?.[0]?.id ?? "ok" };
 }
 
-/** Resend email over HTTPS (free: 100/day, 3,000/month). HTTP works on Cloudflare Workers; SMTP does not reliably. */
+/**
+ * Your own Gmail through a Google Apps Script web app (docs/gmail-apps-script.gs).
+ * Free, no domain needed, 100 emails/day on a personal Google account.
+ */
+async function sendGmail(to: string, m: Message, settings: Settings): Promise<Result> {
+  try {
+    // Apps Script answers with a redirect to the script's output; fetch follows it.
+    const res = await fetch(process.env.GMAIL_SCRIPT_URL!, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({
+        secret: process.env.GMAIL_SCRIPT_SECRET,
+        to,
+        subject: m.subject,
+        text: m.text,
+        name: process.env.MAIL_FROM_NAME || settings.business_name,
+        replyTo: settings.email || undefined,
+      }),
+    });
+    const body = await res.json().catch(() => null);
+    if (!res.ok || !body?.ok) return { status: "failed", detail: body?.error ?? `HTTP ${res.status}` };
+    return { status: "sent", detail: `gmail (${body.remaining ?? "?"} left today)` };
+  } catch (e) {
+    return { status: "failed", detail: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/** Gmail if set up, otherwise Resend (needs a verified domain). HTTP APIs only: Workers can't reliably use SMTP. */
 async function sendEmail(to: string, m: Message, settings: Settings): Promise<Result> {
+  if (gmailConfigured()) return sendGmail(to, m, settings);
   try {
     const name = (process.env.MAIL_FROM_NAME || settings.business_name).replace(/[<>"]/g, "");
     const res = await fetch("https://api.resend.com/emails", {

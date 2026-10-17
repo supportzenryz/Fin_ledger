@@ -9,7 +9,7 @@ A personal lending ledger you install on your phone as an app (PWA). It tracks:
 - **Agreements:** the app makes the agreement PDF, and the customer gets a link to download it, sign it, and upload it back with their ID proof.
 - **Reminders:** sent automatically by WhatsApp and email (before the due date, on the due date, and when overdue), plus payment receipts.
 
-Stack (all free tiers): **Next.js 16** on **Cloudflare Workers**, **Supabase** (Postgres database, login, file storage), **Resend** (email), and the WhatsApp Cloud API.
+Stack (all free tiers): **Next.js 16** on **Cloudflare Workers**, **Supabase** (Postgres database, login, file storage), **Gmail via Apps Script** (email), and the WhatsApp Cloud API.
 
 ---
 
@@ -69,7 +69,7 @@ The app runs on **Cloudflare Workers** through the OpenNext adapter. Cloudflare 
    - the same `NEXT_PUBLIC_APP_URL` again (the daily job reads it)
    - `SUPABASE_SERVICE_ROLE_KEY`
    - `CRON_SECRET`: any long random string
-   - the Resend and WhatsApp keys from `.env.example` (when you have them)
+   - the email and WhatsApp keys from `.env.example` (when you have them)
 5. The daily reminder job is already configured in `wrangler.jsonc`. It runs every day at **9:00 AM IST** (03:30 UTC); you can see it under **Settings → Trigger events**.
 
 Free-plan limits: the app bundle is about 1.8 MB (the limit is 3 MB), and there are 100,000 requests a day. If a page ever fails with "Worker exceeded CPU time limit" (the free plan allows 10 ms of CPU per request), upgrade to Workers Paid (US$5 a month). Nothing in the code needs to change.
@@ -80,9 +80,30 @@ To deploy from your own computer instead: `npx wrangler login`, then `npm run de
 
 Open your app's address in Chrome on Android, then tap **⋮ → Add to Home screen / Install app**. On iPhone, open it in Safari and tap **Share → Add to Home Screen**.
 
-### 5. Email (free, Resend)
+### 5. Email (free, from your Gmail)
 
-The Resend free plan sends 100 emails a day (3,000 a month).
+Emails are sent from your own Gmail through a small Google Apps Script. No domain is needed, and a free Google account allows 100 emails a day.
+
+1. Go to https://script.google.com → **New project**. Delete the sample code and paste all of [`docs/gmail-apps-script.gs`](docs/gmail-apps-script.gs).
+2. Click the gear icon (**Project Settings**) → **Script Properties** → **Add script property**:
+   - Property: `SECRET`
+   - Value: a long random text you make up
+3. Click **Deploy → New deployment → Web app**:
+   - Execute as: **Me**
+   - Who has access: **Anyone**
+   - Click **Deploy**, allow the permission to send email as you, and copy the **Web app URL** (it ends in `/exec`).
+4. Add these as Secrets on the Worker:
+   - `GMAIL_SCRIPT_URL`: the Web app URL
+   - `GMAIL_SCRIPT_SECRET`: the same text as `SECRET`
+   - `MAIL_FROM_NAME`: your business name
+
+Customers' replies go to the email you set in the app's **Settings**.
+
+If you edit the script later, use **Deploy → Manage deployments → Edit → New version**, so the URL stays the same.
+
+#### Later: Resend (needs your own domain)
+
+If you buy a domain, you can switch to Resend (100 emails a day free). Resend is used only when the Gmail secrets are removed.
 
 1. Create a free account at https://resend.com.
 2. **Verify a domain you own.** Resend only sends to other people from a verified domain; Gmail addresses can't be used as the sender.

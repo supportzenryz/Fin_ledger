@@ -66,7 +66,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
           </label>
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" name="email_enabled" defaultChecked={st.email_enabled} />
-            Email {emailConfigured() ? "(Resend connected ✓)" : "(Resend key not added yet)"}
+            Email {emailConfigured() ? "(connected ✓)" : "(not set up yet)"}
           </label>
         </section>
         <button className="btn">Save settings</button>
