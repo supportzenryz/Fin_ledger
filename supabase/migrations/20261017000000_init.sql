@@ -206,3 +206,9 @@ on conflict (id) do nothing;
 create policy lendbook_storage_admin on storage.objects for all
   using (bucket_id in ('kyc','agreements') and public.is_admin())
   with check (bucket_id in ('kyc','agreements') and public.is_admin());
+
+-- ---------- API grants (explicit, in case "auto-expose new tables" is off) ----------
+grant usage on schema public to authenticated, service_role;
+grant select, insert, update, delete on all tables in schema public to authenticated, service_role;
+grant usage, select on all sequences in schema public to authenticated, service_role;
+grant execute on function public.is_admin() to authenticated;
